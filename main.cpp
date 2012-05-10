@@ -1,8 +1,8 @@
 /*
  * Author note for HSS emulation part: Author Kim Mattsson, base from  Kroeske
  * 
- * GPS position and time functions are currently commented out. I'll rewrite them later
- * Serial messages are only for debugging and can be removed-
+ * GPS position and time functions are currently commented out. I'll rewrite them later.
+ * Serial messages are only for debugging and can be removed.
  * 
  * Code by Janne Mäntyharju
  */
@@ -13,10 +13,20 @@
 #include <Wire/Wire.h>
 
 #define Hitec_i2c  0x08         // Hitec Telemetry module address
+//#define USE_SPI
 
-unsigned char state = 0;
-byte last_char = 0;
-byte upper = 0;
+typedef union {
+        long l;
+        int i;
+        unsigned int ui;
+        unsigned char uc;
+        byte buf[4];
+} UNI;
+
+byte state = 0;
+UNI u;
+
+void handle_byte(byte);
 
 enum hss_states {
 	hss_temp = 0,
@@ -29,6 +39,8 @@ enum hss_states {
 	hss_num_satellites,
 	hss_airspeed,
 	hss_throttle,
+    hss_longitude,
+    hss_latitude,
 	hss_end
 };
 
@@ -164,52 +176,50 @@ void setAmpere(unsigned int value)
 
 /*
  * longitude and latitude are in GPS decimal, Aurora shows deg.min.sec
+ * format is ddmm ss(,)ss
  */
-/*void setGPSValue(long longitude, long latitude)
+void convertCoords(long *from, int *dm, int *s)
 {
-    char x[15];
-    int d;
-    long m;
-    int ne;
+	int x;
+	
+	*dm = *from / 10000000;    
+	*from -= *dm * 10000000;
+	*from *= 6;
+	x = *from / 1000000;
+	*dm *= 100;
+	*dm += x;
+	
+	*from -= x * 1000000;
+	*s = *from / 100;
+}
 
-    // get rid of minus sign, if exist, creates problems in the sprintf & sscanf
-    if (longitude < 0) {
-        ne = -1;
-        longitude = -longitude;
-    } else
-        ne = 1;
+void setGPSLon(long longitude)
+{
+    int dm;
+    int s;
+    
+    convertCoords(&longitude, &dm, &s);
+    
+    data[2][2] = s & 0xff;
+    data[2][1] = s >> 8;
 
-    sprintf(x, "%09.9lu", longitude);
-    sscanf(x, "%2d%7ld", &d, &m);
-    m = m * 6;
-    sprintf(x + 2, "%07.7lu", m);
-    sscanf(x, "%4d%5ld", &d, &m);
-    m = m / 10;
-    data[2][2] = m & 0xff;
-    data[2][1] = m >> 8;
+    data[2][4] = dm & 0xff;
+    data[2][3] = dm >> 8;
+}
 
-    d *= ne;                    // return the sign, so that N/S E/W shows correcly
-    data[2][4] = d & 0xff;
-    data[2][3] = d >> 8;
+void setGPSLat(long latitude)
+{
+	int dm;
+	int s;
+	
+	convertCoords(&latitude, &dm, &s);
+	    
+    data[1][2] = s & 0xff;
+    data[1][1] = s >> 8;
 
-    if (latitude < 0) {
-        ne = -1;
-        latitude = -latitude;
-    } else
-        ne = 1;
-        
-    sprintf(x, "%09.9lu", latitude);
-    sscanf(x, "%2d%7ld", &d, &m);
-    m = m * 6;
-    sprintf(x + 2, "%07.7lu", m);
-    sscanf(x, "%4d%5ld", &d, &m);
-    m = m / 10;
-    data[1][2] = m & 0xff;
-    data[1][1] = m >> 8;
-    d *= ne;
-    data[1][4] = d & 0xff;
-    data[1][3] = d >> 8;
-}*/
+    data[1][4] = dm & 0xff;
+    data[1][3] = dm >> 8;
+}
 
 // reguires date in format yymmdd as a long
 /*void setGPSDate(long t)
@@ -245,109 +255,134 @@ void setGPSSignal(char c)
     data[6][3] = c;
 }
 
-SIGNAL(SPI_STC_vect)
-{
-    byte c = SPDR;
-    unsigned int value = 0;
-
-    if (c == '*' && last_char == '*') {
-        state = 0;
-        upper = 0;
-        Serial.println("Reset");
-    } else {
-        if (!upper) {
-            upper = 1;
-        } else {
-            value = last_char * 0xff;
-            value += c;
-            upper = 0;
-
-            switch (state) {
-                case hss_temp:{
-                        Serial.print("temp:");
-                        Serial.println(value, DEC);
-                        setTemp(1, (value / 10) + 40);
-                        break;
-                    }
-                case hss_voltage:{
-                        Serial.print("bat:");
-                        Serial.println(value, DEC);
-                        setVoltage(value);
-                        break;
-                    }
-                case hss_amps:{
-                        Serial.print("amp:");
-                        Serial.println(value, DEC);
-                        setAmpere(value);
-                        break;
-                    }
-                case hss_current_total:{       // total current
-                        Serial.print("total:");
-                        Serial.println(value, DEC);
-                        setRpm(1, value);
-                        break;
-                    }
-                case hss_battery_remaining:{
-                        Serial.print("fuel:");
-                        Serial.println(value, DEC);
-                        FuelGauge(value);
-                        break;
-                    }
-                case hss_alt:{
-                        Serial.print("alt:");
-                        Serial.println(value, DEC);
-                        setAltitude(value);
-                        break;
-                    }
-                case hss_groundspeed:{
-                        Serial.print("groundspeed:");
-                        Serial.println(value, DEC);
-                        setSpeed(value);
-                        break;
-                    }
-                case hss_num_satellites:{
-                        Serial.print("gps:");
-                        Serial.println(value, DEC);
-                        setGPSSignal(value);
-                        break;
-                    }
-                case hss_airspeed:{
-                        Serial.print("air:");
-                        Serial.println(value, DEC);
-                        setRpm(2,value);
-                        break;
-                    }
-                case hss_throttle:{
-                        Serial.print("throttle:");
-                        Serial.println(value, DEC);  // throttle
-                        float t = (value / 12670.0)*100.0;
-                        setTemp(2,(unsigned int)t/2+40.0);
-                        break;
-                    }
-                default:
-                    Serial.print("unknown:");
-                    Serial.println(value, DEC);
-                    break;
-            }
-
-            state++;
-        }
-    }
-
-    last_char = c;
-}
-
 void setup()
 {
-    Serial.begin(115200);
-    SPCR = _BV(SPE) | _BV(SPIE) | _BV(CPOL) | _BV(CPHA); // Enable SPI & Interrupt, Mode 3
+    Serial.begin(38400);
+#ifdef USE_SPI
+    SPCR = _BV(SPE) | _BV(CPOL) | _BV(CPHA); // Enable SPI, Mode 3
+#endif
     Wire.begin(Hitec_i2c);
     Wire.onRequest(Send_Hitec);
 }
 
-void loop()
+byte get_data()
 {
+	byte i;
+	byte last_char = 0;
+	byte c;
+	
+	for(i = 0; i < 4; i++) {
+#ifdef USE_SPI
+        loop_until_bit_is_set(SPSR, SPIF);
+        c = SPDR;
+#else
+		while (!Serial.available());
+		c = Serial.read();
+#endif
+		if (last_char == '*' && c == '*')
+			return 0;
+		u.buf[i] = c;
+		last_char = c;
+	}
+	
+	return 1;
+}
 
+void loop()
+{	
+	if (!get_data()) {
+		state = 0;
+		Serial.println("**");
+		return;
+	}
+
+	switch (state) {
+		case hss_temp:{
+			Serial.print("temp:");
+			Serial.println(u.uc, DEC);
+			setTemp(1, u.uc + 40);
+			break;
+		}
+		case hss_voltage:{
+			Serial.print("bat:");
+			u.ui *= 10;
+			Serial.println(u.ui, DEC);
+			setVoltage(u.ui);
+			break;
+		}
+		case hss_amps:{
+			Serial.print("amp:");
+			u.ui *= 10;
+			Serial.println(u.ui, DEC);
+			setAmpere(u.ui);
+			break;
+		}
+		case hss_current_total:{       // total current
+			Serial.print("total:");
+			Serial.println(u.ui, DEC);
+			setRpm(1, u.ui);
+			break;
+		}
+		case hss_battery_remaining:{
+			Serial.print("fuel:");
+			Serial.println(u.uc, DEC);
+			FuelGauge(u.uc);
+			break;
+		}
+		case hss_alt:{
+			Serial.print("alt:");
+			u.ui /= 100;
+			Serial.println(u.ui, DEC);
+			setAltitude(u.ui);
+			break;
+		}
+		case hss_groundspeed:{
+			Serial.print("gpsSpeed:");
+			u.l *= 0.036;
+            Serial.println(u.l, 2);
+			setSpeed(u.l);
+			break;
+		}
+		case hss_num_satellites:{
+			Serial.print("gps:");
+			Serial.println(u.uc, DEC);
+			setGPSSignal(u.uc);
+			break;
+		}
+		case hss_airspeed:{
+			Serial.print("air:");
+			u.l *= 0.036;
+			Serial.println(u.i, DEC);
+			setRpm(2,u.i);
+			break;
+		}
+		case hss_throttle:{
+			Serial.print("throttle:");
+			Serial.println(u.ui, DEC);  // throttle
+			float t = (u.ui / 12670.0)*100.0;
+			setTemp(2,(unsigned int)t/2+40.0);
+			break;
+		}
+        case hss_longitude:{
+            Serial.print("lon:");
+            Serial.println(u.l, DEC);
+            setGPSLon(u.l);
+            break;
+        }
+        case hss_latitude:{
+            Serial.print("lat:");
+            Serial.println(u.l, DEC);
+            setGPSLat(u.l);
+            break;
+        }
+		default:{
+			Serial.print("err:");
+			Serial.println(u.ui, DEC);
+			break;
+		}
+	}
+
+	state++;
 }
 
 int main(){

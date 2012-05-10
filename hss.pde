@@ -4,8 +4,9 @@
  * Code: Janne MŠntyharju
  */
 
-
-#define HSS_SS 60	// PF6, chip select
+#if CONFIG_APM_HARDWARE == APM_HARDWARE_APM1
+#define HSS_SS 60      // PF6, chip select
+#endif
 
 enum hss_states {
 	hss_start = 0,
@@ -19,78 +20,106 @@ enum hss_states {
 	hss_num_satellites,
 	hss_airspeed,
 	hss_throttle,
+    hss_longitude,
+    hss_latitude,
 	hss_end
 };
 
+typedef union {
+        long l;
+        int i;
+        unsigned int ui;
+        unsigned char uc;
+        byte buf[4];
+} UNI;
+
 static byte hss_state = 0;
+static UNI u;
 
 void hss_setup()
 {
+#if CONFIG_APM_HARDWARE == APM_HARDWARE_APM1
 	pinMode(HSS_SS, OUTPUT);
+#endif
+}
+
+inline static void hss_send_byte(char c)
+{
+#if CONFIG_APM_HARDWARE == APM_HARDWARE_APM2
+	Serial2.write(c);
+#else
+	SPI.transfer(c);
+#endif
+}
+
+void hss_send_data(byte start)
+{
+	byte i;
+
+#if CONFIG_APM_HARDWARE == APM_HARDWARE_APM1
+	digitalWrite(HSS_SS, LOW);
+#endif
+
+	if(start) {
+		hss_send_byte('*');
+		hss_send_byte('*');
+	} else {
+		for(i = 0; i < 4; i++) {
+			hss_send_byte(u.buf[i]);
+		}
+	}
+#if CONFIG_APM_HARDWARE == APM_HARDWARE_APM1
+	digitalWrite(HSS_SS, HIGH);
+#endif
+
 }
 
 void hss_update()
 {
-	unsigned int v;
-
-	digitalWrite(HSS_SS, LOW);
-	delay(1);
-
 	switch (hss_state) {
 		case hss_start:
-			SPI.transfer('*');
-			SPI.transfer('*');
+			hss_send_data(true);
 			break;
 		case hss_temp:
-			SPI.transfer(barometer.Temp >> 8);
-			SPI.transfer(barometer.Temp);
+			u.ui = barometer.get_temperature();
 			break;
 		case hss_voltage:
-			v = (battery_voltage * 10.0);
-			SPI.transfer(v >> 8);
-			SPI.transfer(v);
+			u.ui = battery_voltage1;
 			break;
 		case hss_amps:
-			v = (current_amps * 10.0);
-			SPI.transfer(v >> 8);
-			SPI.transfer(v);
+			u.ui = current_amps1;
 			break;
 		case hss_current_total:
-			v = current_total;
-			SPI.transfer(v >> 8);
-			SPI.transfer(v);
+			u.ui = current_total1;
 			break;
 		case hss_battery_remaining:
-			v = (5.0 * (g.pack_capacity - current_total) / g.pack_capacity);;
-			SPI.transfer(0);
-			SPI.transfer(v);
+			u.uc = (5.0 * (g.pack_capacity - current_total1) / g.pack_capacity);
 			break;
 		case hss_alt:
-			v = current_loc.alt / 100.0;
-			SPI.transfer(v >> 8);
-			SPI.transfer(v);
+			u.ui = current_loc.alt;
 			break;
 		case hss_groundspeed:
-			v = g_gps->ground_speed * 0.036;	// convert to km/h
-			SPI.transfer(v >> 8);
-			SPI.transfer(v);
+			u.l = g_gps->ground_speed;
 			break;
 		case hss_num_satellites:
-			SPI.transfer(0);
-			SPI.transfer(g_gps->num_sats);
+			u.uc = g_gps->num_sats;
 			break;
 		case hss_airspeed:
-			v = airspeed * 0.036;	// convert to km/h
-			SPI.transfer(v);
-			SPI.transfer(v);
+			u.i = airspeed;
 			break;
 		case hss_throttle:
-			v = g.channel_throttle.servo_out;
-			SPI.transfer(v);
-			SPI.transfer(v);
+			u.ui = g.channel_throttle.servo_out;
+			break;
+		case hss_longitude:
+			u.l = g_gps->longitude;
+			break;
+		case hss_latitude:
+			u.l = g_gps->latitude;
 			break;
 	}
-	digitalWrite(HSS_SS, HIGH);
+
+	if (hss_state != hss_start)
+		hss_send_data(false);
 
 	hss_state++;
 	if (hss_state == hss_end)
