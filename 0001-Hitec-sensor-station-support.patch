@@ -1,37 +1,28 @@
-From 26750dd2dd7be674acb30b62c459d9a8e0771590 Mon Sep 17 00:00:00 2001
+From e6bc5c0c0febf3eea70c98251ff21f79ea846a07 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Janne=20M=C3=A4ntyharju?= <janne.mantyharju@iki.fi>
-Date: Wed, 9 May 2012 08:32:28 +0300
-Subject: [PATCH] Hitec sensor station support
+Date: Wed, 11 Jul 2012 17:25:01 +0300
+Subject: [PATCH] Hitec sensor station emulation support
 
 ---
- ArduPlane/ArduPlane.pde |    6 ++-
- ArduPlane/hss.pde       |  127 +++++++++++++++++++++++++++++++++++++++++++++++
+ ArduPlane/ArduPlane.pde |    3 +
+ ArduPlane/hss.pde       |  128 +++++++++++++++++++++++++++++++++++++++++++++++
  ArduPlane/system.pde    |    1 +
- 3 files changed, 132 insertions(+), 2 deletions(-)
+ 3 files changed, 132 insertions(+), 0 deletions(-)
  create mode 100644 ArduPlane/hss.pde
 
 diff --git a/ArduPlane/ArduPlane.pde b/ArduPlane/ArduPlane.pde
-index 0b0efbf..89989f3 100644
+index 1f488e4..5fd7476 100644
 --- a/ArduPlane/ArduPlane.pde
 +++ b/ArduPlane/ArduPlane.pde
-@@ -71,6 +71,7 @@ version 2.1 of the License, or (at your option) any later version.
- //
- FastSerialPort0(Serial);        // FTDI/console
- FastSerialPort1(Serial1);       // GPS port
-+FastSerialPort2(Serial2);
- FastSerialPort3(Serial3);       // Telemetry port
+@@ -78,6 +78,7 @@ FastSerialPort1(Serial1);       // GPS port
+  // solder bridge set to enable UART2 instead of USB MUX
+  FastSerialPort2(Serial3);
+ #else
++ FastSerialPort2(Serial2);
+  FastSerialPort3(Serial3);       // Telemetry port for APM1
+ #endif
  
- ////////////////////////////////////////////////////////////////////////////////
-@@ -629,8 +630,6 @@ static unsigned long 	dTnav;
- // % MCU cycles used
- static float 			load;
- 
--
--
- ////////////////////////////////////////////////////////////////////////////////
- // Top-level logic
- ////////////////////////////////////////////////////////////////////////////////
-@@ -638,6 +637,7 @@ static float 			load;
+@@ -653,6 +654,7 @@ AP_Mount camera_mount(&current_loc, g_gps, &ahrs);
  void setup() {
  	memcheck_init();
  	init_ardupilot();
@@ -39,25 +30,24 @@ index 0b0efbf..89989f3 100644
  }
  
  void loop()
-@@ -766,6 +766,8 @@ static void medium_loop()
+@@ -785,6 +787,7 @@ static void medium_loop()
  		// This case deals with the GPS
  		//-------------------------------
  		case 0:
 +			hss_update();
-+
  			medium_loopCounter++;
  			if(GPS_enabled){
                  update_GPS();
 diff --git a/ArduPlane/hss.pde b/ArduPlane/hss.pde
 new file mode 100644
-index 0000000..b7de51d
+index 0000000..d494f97
 --- /dev/null
 +++ b/ArduPlane/hss.pde
-@@ -0,0 +1,127 @@
+@@ -0,0 +1,128 @@
 +/*
 + * Functions for sending telemetry data via SPI to Hitec sensor station emulator
 + *
-+ * Code: Janne MŠntyharju
++ * Code: Janne MÅ ntyharju
 + */
 +
 +#if CONFIG_APM_HARDWARE == APM_HARDWARE_APM1
@@ -83,6 +73,7 @@ index 0000000..b7de51d
 +
 +typedef union {
 +        long l;
++        float f;
 +        int i;
 +        unsigned int ui;
 +        unsigned char uc;
@@ -137,16 +128,16 @@ index 0000000..b7de51d
 +			hss_send_data(true);
 +			break;
 +		case hss_temp:
-+			u.ui = barometer.get_temperature();
++			u.i = barometer.get_temperature();
 +			break;
 +		case hss_voltage:
-+			u.ui = battery_voltage1;
++			u.f = battery_voltage1;
 +			break;
 +		case hss_amps:
-+			u.ui = current_amps1;
++			u.f = current_amps1;
 +			break;
 +		case hss_current_total:
-+			u.ui = current_total1;
++			u.f = current_total1;
 +			break;
 +		case hss_battery_remaining:
 +			u.uc = (5.0 * (g.pack_capacity - current_total1) / g.pack_capacity);
@@ -182,13 +173,13 @@ index 0000000..b7de51d
 +		hss_state = 0;
 +}
 diff --git a/ArduPlane/system.pde b/ArduPlane/system.pde
-index 3a856b8..4f6e527 100644
+index a17f746..7794e02 100644
 --- a/ArduPlane/system.pde
 +++ b/ArduPlane/system.pde
 @@ -87,6 +87,7 @@ static void init_ardupilot()
  	//
      // standard gps running
-     Serial1.begin(38400, 128, 16);
+     Serial1.begin(38400, 256, 16);
 +    Serial2.begin(38400, 128, 16);
  
  	Serial.printf_P(PSTR("\n\nInit " THISFIRMWARE

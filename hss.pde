@@ -1,7 +1,7 @@
 /*
  * Functions for sending telemetry data via SPI to Hitec sensor station emulator
  *
- * Code: Janne MŠntyharju
+ * Code: Janne MÅ ntyharju
  */
 
 #if CONFIG_APM_HARDWARE == APM_HARDWARE_APM1
@@ -27,6 +27,7 @@ enum hss_states {
 
 typedef union {
         long l;
+        float f;
         int i;
         unsigned int ui;
         unsigned char uc;
@@ -81,16 +82,16 @@ void hss_update()
 			hss_send_data(true);
 			break;
 		case hss_temp:
-			u.ui = barometer.get_temperature();
+			u.i = barometer.get_temperature();
 			break;
 		case hss_voltage:
-			u.ui = battery_voltage1;
+			u.f = battery_voltage1;
 			break;
 		case hss_amps:
-			u.ui = current_amps1;
+			u.f = current_amps1;
 			break;
 		case hss_current_total:
-			u.ui = current_total1;
+			u.f = current_total1;
 			break;
 		case hss_battery_remaining:
 			u.uc = (5.0 * (g.pack_capacity - current_total1) / g.pack_capacity);

@@ -17,6 +17,7 @@
 
 typedef union {
         long l;
+	float f;
         int i;
         unsigned int ui;
         unsigned char uc;
@@ -263,6 +264,7 @@ void setup()
 #endif
     Wire.begin(Hitec_i2c);
     Wire.onRequest(Send_Hitec);
+    DDRB = _BV(DDB0);
 }
 
 byte get_data()
@@ -299,28 +301,30 @@ void loop()
 	switch (state) {
 		case hss_temp:{
 			Serial.print("temp:");
-			Serial.println(u.uc, DEC);
-			setTemp(1, u.uc + 40);
+			u.i /= 10;
+			Serial.println(u.i, DEC);
+			setTemp(1, u.i + 40);
 			break;
 		}
 		case hss_voltage:{
 			Serial.print("bat:");
-			u.ui *= 10;
-			Serial.println(u.ui, DEC);
-			setVoltage(u.ui);
+			Serial.println(u.f, DEC);
+			u.f *= 10.0;
+			setVoltage((unsigned int)u.f);
 			break;
 		}
 		case hss_amps:{
 			Serial.print("amp:");
-			u.ui *= 10;
-			Serial.println(u.ui, DEC);
-			setAmpere(u.ui);
+			Serial.println(u.f, DEC);
+			u.f *= 100.0;
+			setAmpere((unsigned int)u.f);
 			break;
 		}
 		case hss_current_total:{       // total current
 			Serial.print("total:");
-			Serial.println(u.ui, DEC);
-			setRpm(1, u.ui);
+			Serial.println(u.f, DEC);
+			u.f *= 100.0;
+			setRpm(1, (unsigned int)u.f);
 			break;
 		}
 		case hss_battery_remaining:{
@@ -339,7 +343,7 @@ void loop()
 		case hss_groundspeed:{
 			Serial.print("gpsSpeed:");
 			u.l *= 0.036;
-            Serial.println(u.l, 2);
+	                Serial.println(u.l, 2);
 			setSpeed(u.l);
 			break;
 		}
@@ -347,6 +351,10 @@ void loop()
 			Serial.print("gps:");
 			Serial.println(u.uc, DEC);
 			setGPSSignal(u.uc);
+			if(u.uc > 5)
+				PORTB |= _BV(PORTB0);
+			else
+				PORTB &= ~_BV(PORTB0);
 			break;
 		}
 		case hss_airspeed:{
@@ -359,8 +367,7 @@ void loop()
 		case hss_throttle:{
 			Serial.print("throttle:");
 			Serial.println(u.ui, DEC);  // throttle
-			float t = (u.ui / 12670.0)*100.0;
-			setTemp(2,(unsigned int)t/2+40.0);
+			setTemp(2,u.ui+40);
 			break;
 		}
         case hss_longitude:{
