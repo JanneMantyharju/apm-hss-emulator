@@ -1,16 +1,13 @@
 /*
- * Author note for HSS emulation part: Author Kim Mattsson, base from  Kroeske
  * 
- * GPS position and time functions are currently commented out. I'll rewrite them later.
+ * GPS time functions are currently commented out. I'll rewrite them later.
  * Serial messages are only for debugging and can be removed.
  * 
  * Code by Janne Mäntyharju
+ * Author note for HSS emulation part: Author Kim Mattsson, base from  Kroeske
  */
 
-
-#include "WProgram.h"
-
-#include <Wire/Wire.h>
+#include "Wire.h"
 
 #define Hitec_i2c  0x08         // Hitec Telemetry module address
 //#define USE_SPI
@@ -69,7 +66,7 @@ void Send_Hitec()
         return;                 //check if Hitecs telemetry address, someone else could be sending also through IRQ. 
 
     // We need to send only one Idrow/request, because of receiver  "odd" handshaking that Wire lib not support (TWEA after every row)
-    Wire.send((uint8_t *) data + msgId * 7, 7);
+    Wire.write((uint8_t *) data + msgId * 7, 7);
     msgId++;
     msgId %= 8;
 }
@@ -323,7 +320,7 @@ void loop()
 		case hss_current_total:{       // total current
 			Serial.print("total:");
 			Serial.println(u.f, DEC);
-			u.f *= 100.0;
+			u.f *= 10.0;
 			setRpm(1, (unsigned int)u.f);
 			break;
 		}
@@ -390,11 +387,4 @@ void loop()
 	}
 
 	state++;
-}
-
-int main(){
-       init();
-       setup();
-       for(;;) loop();
-       return 0;
 }

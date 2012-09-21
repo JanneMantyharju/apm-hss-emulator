@@ -106,7 +106,7 @@ void hss_update()
 			u.uc = g_gps->num_sats;
 			break;
 		case hss_airspeed:
-			u.i = airspeed;
+			u.i = airspeed.get_airspeed_cm();
 			break;
 		case hss_throttle:
 			u.ui = g.channel_throttle.servo_out;
