@@ -357,8 +357,8 @@ void loop()
 		case hss_airspeed:{
 			Serial.print("air:");
 			u.l *= 0.036;
-			Serial.println(u.i, DEC);
-			setRpm(2,u.i);
+			Serial.println(u.l, 2);
+			setRpm(2,u.l);
 			break;
 		}
 		case hss_throttle:{
