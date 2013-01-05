@@ -1,55 +1,28 @@
-From 8e3bd2adf45cc71a190f037bb8b58274d56bd3bb Mon Sep 17 00:00:00 2001
+From 82cdb4c89a126b6431f280895d46fab424189bda Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Janne=20M=C3=A4ntyharju?= <janne.mantyharju@iki.fi>
-Date: Wed, 11 Jul 2012 17:25:01 +0300
-Subject: [PATCH] Hitec sensor station emulation support
+Date: Fri, 4 Jan 2013 09:13:04 -0500
+Subject: [PATCH] ArduPlane - hss emulation
 
 ---
- ArduPlane/ArduPlane.pde |  12 +++--
- ArduPlane/hss.pde       | 128 ++++++++++++++++++++++++++++++++++++++++++++++++
- ArduPlane/system.pde    |   1 +
- 3 files changed, 136 insertions(+), 5 deletions(-)
+ ArduPlane/ArduPlane.pde |    2 +
+ ArduPlane/hss.pde       |  128 +++++++++++++++++++++++++++++++++++++++++++++++
+ ArduPlane/system.pde    |    3 ++
+ 3 files changed, 133 insertions(+)
  create mode 100644 ArduPlane/hss.pde
 
 diff --git a/ArduPlane/ArduPlane.pde b/ArduPlane/ArduPlane.pde
-index de80fa8..e1a2732 100644
+index 33e82d6..e49abf6 100644
 --- a/ArduPlane/ArduPlane.pde
 +++ b/ArduPlane/ArduPlane.pde
-@@ -86,7 +86,8 @@ FastSerialPort1(Serial1);       // GPS port
- // solder bridge set to enable UART2 instead of USB MUX
- FastSerialPort2(Serial3);
- #else
--FastSerialPort3(Serial3);        // Telemetry port for APM1
-+ FastSerialPort2(Serial2);
-+ FastSerialPort3(Serial3);       // Telemetry port for APM1
- #endif
- 
- // this sets up the parameter table, and sets the default values. This
-@@ -533,7 +534,7 @@ int32_t wp_distance;
- static int32_t wp_totalDistance;
- 
- // event control state
--enum event_type { 
-+enum event_type {
-     EVENT_TYPE_RELAY=0,
-     EVENT_TYPE_SERVO=1
- };
-@@ -680,8 +681,9 @@ AP_Mount camera_mount2(&current_loc, g_gps, &ahrs, 1);
- ////////////////////////////////////////////////////////////////////////////////
- 
- void setup() {
--    memcheck_init();
--    init_ardupilot();
-+	memcheck_init();
-+	init_ardupilot();
-+	hss_setup();
+@@ -682,6 +682,7 @@ void setup() {
+     airspeed.init(pitot_analog_source);
+     memcheck_init();
+     init_ardupilot();
++    hss_setup();
  }
  
  void loop()
-@@ -813,10 +815,10 @@ static void medium_loop()
-     // This is the start of the medium (10 Hz) loop pieces
-     // -----------------------------------------
-     switch(medium_loopCounter) {
--
+@@ -812,6 +813,7 @@ static void medium_loop()
      // This case deals with the GPS
      //-------------------------------
      case 0:
@@ -59,7 +32,7 @@ index de80fa8..e1a2732 100644
          calc_gndspeed_undershoot();
 diff --git a/ArduPlane/hss.pde b/ArduPlane/hss.pde
 new file mode 100644
-index 0000000..30a2453
+index 0000000..310a620
 --- /dev/null
 +++ b/ArduPlane/hss.pde
 @@ -0,0 +1,128 @@
@@ -96,10 +69,10 @@ index 0000000..30a2453
 +        int i;
 +        unsigned int ui;
 +        unsigned char uc;
-+        byte buf[4];
++        uint8_t buf[4];
 +} UNI;
 +
-+static byte hss_state = 0;
++static uint8_t hss_state = 0;
 +static UNI u;
 +
 +void hss_setup()
@@ -112,15 +85,15 @@ index 0000000..30a2453
 +inline static void hss_send_byte(char c)
 +{
 +#if CONFIG_APM_HARDWARE == APM_HARDWARE_APM2
-+	Serial2.write(c);
++	hal.uartC->write(c);
 +#else
 +	SPI.transfer(c);
 +#endif
 +}
 +
-+void hss_send_data(byte start)
++void hss_send_data(uint8_t start)
 +{
-+	byte i;
++	uint8_t i;
 +
 +#if CONFIG_APM_HARDWARE == APM_HARDWARE_APM1
 +	digitalWrite(HSS_SS, LOW);
@@ -192,17 +165,19 @@ index 0000000..30a2453
 +		hss_state = 0;
 +}
 diff --git a/ArduPlane/system.pde b/ArduPlane/system.pde
-index ec4a473..6f2f101 100644
+index fd0dff6..08fcd4f 100644
 --- a/ArduPlane/system.pde
 +++ b/ArduPlane/system.pde
-@@ -87,6 +87,7 @@ static void init_ardupilot()
-     //
+@@ -100,6 +100,9 @@ static void init_ardupilot()
      // standard gps running
-     Serial1.begin(38400, 256, 16);
-+    Serial2.begin(38400, 128, 16);
+     hal.uartB->begin(38400, 256, 16);
  
-     Serial.printf_P(PSTR("\n\nInit " THISFIRMWARE
++    // Initialize HSS communication
++    hal.uartC->begin(38400, 128, 16);
++
+     cliSerial->printf_P(PSTR("\n\nInit " THISFIRMWARE
                           "\n\nFree RAM: %u\n"),
+                     memcheck_available_memory());
 -- 
-1.7.11.3
+1.7.9.5
 
