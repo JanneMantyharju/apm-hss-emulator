@@ -1,11 +1,10 @@
+This repository contains sources for Ardupilot Mega to Hitec telemetry adapter
+For more information see: http://wp.me/p12J9M-3M
+
 Files in this repository:
-ArduPlane/*.patch - Patch to apply to APM repository to enable telemetry data transfer on ArduPlane
-adapter.ino - Source for sensor station emulator
-apm-hss-emulator.hex - Compiled source for flashing to ATMega88
-Makefile - Makefile to compile source on commandline.
+adapter/ - Source files, compile with Arduino
+libraries/ - Mavlink and support libraries
 hss.sch - Schematics in Eagle format
-Arduino.mk - Actual makefile by Martin Oldfield
+hss.brd - Board in Eagle format
 
-Arduino.mk need support scripts to work. If you have trouble compiling the source, clone the makefile repository from https://github.com/mjoldfield/Arduino-Makefile
-
-
+Compile to ATMega328p with 8MHz clock setting.
