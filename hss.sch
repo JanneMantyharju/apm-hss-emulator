@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE eagle SYSTEM "eagle.dtd">
-<eagle version="6.4">
+<eagle version="6.1">
 <drawing>
 <settings>
 <setting alwaysvectorfont="no"/>
@@ -6068,8 +6068,8 @@ drill 1.2 mm</description>
 <part name="GND1" library="supply1" deviceset="GND" device=""/>
 <part name="GND2" library="supply1" deviceset="GND" device=""/>
 <part name="C1" library="resistor" deviceset="C-EU" device="C1206" value="100nF"/>
-<part name="R1" library="resistor" deviceset="R-EU_" device="M1206" value="3k"/>
-<part name="R2" library="resistor" deviceset="R-EU_" device="M1206" value="3k"/>
+<part name="R1" library="resistor" deviceset="R-EU_" device="M1206" value="820"/>
+<part name="R2" library="resistor" deviceset="R-EU_" device="M1206" value="820"/>
 <part name="GND3" library="supply1" deviceset="GND" device=""/>
 <part name="P+1" library="supply1" deviceset="VCC" device=""/>
 <part name="P+2" library="supply1" deviceset="VCC" device=""/>
@@ -6165,6 +6165,9 @@ drill 1.2 mm</description>
 <pinref part="P+1" gate="VCC" pin="VCC"/>
 <pinref part="C1" gate="G$1" pin="2"/>
 <junction x="40.64" y="55.88"/>
+<pinref part="IC1" gate="G$1" pin="AVCC"/>
+<wire x1="40.64" y1="68.58" x2="45.72" y2="68.58" width="0.1524" layer="91"/>
+<wire x1="45.72" y1="68.58" x2="45.72" y2="71.12" width="0.1524" layer="91"/>
 </segment>
 <segment>
 <pinref part="R1" gate="G$1" pin="2"/>
