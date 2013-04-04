@@ -75,12 +75,13 @@ void read_mavlink(){
                 case MAVLINK_MSG_ID_VFR_HUD:
                 {
                     streams_received |= _BV(4);
-                    setRpm(2,(mavlink_msg_vfr_hud_get_airspeed(&msg) * 3.6f));
+                    setRpm(2,(mavlink_msg_vfr_hud_get_throttle(&msg) * 10.0f));
                     setSpeed((mavlink_msg_vfr_hud_get_groundspeed(&msg) * 3.6f));
-                    setTemp(2, mavlink_msg_vfr_hud_get_throttle(&msg));
-                    setAltitude(mavlink_msg_vfr_hud_get_alt(&msg));
+                    setTemp(2, (mavlink_msg_vfr_hud_get_airspeed(&msg) * 3.6f));
                     alt = mavlink_msg_vfr_hud_get_alt(&msg);
-                    setTemp(3, mavlink_msg_vfr_hud_get_climb(&msg));
+                    setAltitude(alt - home_alt);
+                    climb = (alpha * mavlink_msg_vfr_hud_get_climb(&msg)) + (1.0 - alpha) * climb;
+                    setTemp(3, climb);
                     break;
                 }
                                 

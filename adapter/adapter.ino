@@ -35,6 +35,8 @@ static float        home_alt = 0;
 static uint8_t      alt_cnt = 0;
 static float        alt_prev = 0;             // previous altitude
 static float        alt = 0;
+static float        climb = 0.0;
+static float        alpha = 0.8;                // value for exponential moving average
 
 char data[8][7] = { {0x11, 0xAF, 0x00, 0x2D, 0x00, 0x00, 0x11}, // 1 Frametype, 4&5 Internal  SPC voltage
 {0x12, 0x00, 0x2C, 0x2C, 0x2E, 0x25, 0x12},     // 1-4 Latitude 5=gps sec,
@@ -264,10 +266,6 @@ void setHomeVars()
     float dstlon, dstlat;
  
     if(got_home == 0 && fix_type > 1) {
-        home_lat = lat;
-        home_lon = lon;
-        got_home = 1;
-    } else if(got_home == 1) {
         if(alt_cnt < 25) {
             if(fabs(alt_prev - alt) > 0.5) {
                 alt_cnt = 0;
@@ -275,9 +273,13 @@ void setHomeVars()
             } else {
                 if(++alt_cnt >= 25) {
                     home_alt = alt;
+                    home_lat = lat;
+                    home_lon = lon;
+                    got_home = 1;
                 }
             }
         }
+    } else if(got_home == 1) {
         // shrinking factor for longitude going to poles direction
         float rads = fabs(home_lat) * 0.0174532925;
         double scaleLongDown = cos(rads);
