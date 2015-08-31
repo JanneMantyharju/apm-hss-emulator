@@ -250,6 +250,7 @@ void setup()
     // setup mavlink port
     mavlink_comm_0_port = &Serial;
     Wire.begin(Hitec_i2c);
+    bitSet(TWAR, TWGCE);
     Wire.onRequest(Send_Hitec);
     
     homeTimer.Set(&setHomeVars, 120);
