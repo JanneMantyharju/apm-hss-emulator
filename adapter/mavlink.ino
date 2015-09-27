@@ -24,14 +24,16 @@ void disableTx()
     UCSR0B &= ~_BV(TXEN0);
 }
 
-void read_mavlink(){
+void read_mavlink() {
     mavlink_message_t msg; 
     mavlink_status_t status;
+
     //grabing data 
     while(Serial.available() > 0) {
         uint8_t c = Serial.read();
         //trying to grab msg
-        if(mavlink_parse_char(MAVLINK_COMM_0, c, &msg, &status)) {          
+        if(mavlink_parse_char(MAVLINK_COMM_0, c, &msg, &status)) {
+            digitalToggle(LED_GREEN);       
             //handle msg
             switch(msg.msgid) {
                 case MAVLINK_MSG_ID_HEARTBEAT:
@@ -66,8 +68,6 @@ void read_mavlink(){
                     setGPSLat(mavlink_msg_gps_raw_int_get_lat(&msg));
                     setGPSLon(mavlink_msg_gps_raw_int_get_lon(&msg));
                     setGPSSignal(mavlink_msg_gps_raw_int_get_satellites_visible(&msg));
-                    if(mavlink_msg_gps_raw_int_get_satellites_visible(&msg) > 5)
-                        digitalWrite(8, HIGH);
                     fix_type = mavlink_msg_gps_raw_int_get_fix_type(&msg);
                     break;
                 }
